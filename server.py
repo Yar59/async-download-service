@@ -21,6 +21,8 @@ async def create_archive(dir_path):
 async def archive_handler(request):
     dir_name = request.match_info.get('archive_hash')
     dir_path = os.path.join('test_photos', dir_name)
+    if not os.path.exists(dir_path):
+        raise web.HTTPNotFound()
     process = await create_archive(dir_path)
 
     response = web.StreamResponse()

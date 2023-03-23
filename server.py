@@ -1,17 +1,19 @@
 import os
-
+import logging
 import aiofiles
 import asyncio
-import datetime
 from aiohttp import web
 from asyncio import subprocess
 
-INTERVAL_SECS = 1
+logger = logging.getLogger(__name__)
+
+CHUNK_SIZE = 100*1024
+PHOTOS_DIR = 'test_photos'
 
 
 async def create_archive(dir_path):
     process = await subprocess.create_subprocess_exec(
-        "zip", "-j", "-r", "-", dir_path,
+        'zip', '-j', '-r', '-', dir_path,
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE
     )
@@ -22,7 +24,9 @@ async def archive_handler(request):
     dir_name = request.match_info.get('archive_hash')
     dir_path = os.path.join('test_photos', dir_name)
     if not os.path.exists(dir_path):
-        raise web.HTTPNotFound()
+        logger.warning(f'Cannot access {dir_path}: No such directory')
+        raise web.HTTPNotFound(text='Архив удален или перемещен')
+    logger.info(f'Started sending the archive {dir_name}.zip')
     process = await create_archive(dir_path)
 
     response = web.StreamResponse()
@@ -32,17 +36,12 @@ async def archive_handler(request):
 
     await response.prepare(request)
 
-    while True:
+    while not process.stdout.at_eof():
+        archive_chunk = await process.stdout.read(CHUNK_SIZE)
+        logger.info(f'Sending archive chunk {len(archive_chunk)} bytes to length')
+        await response.write(archive_chunk)
 
-        await response.write(await process.stdout.read(102400))
-
-        if process.stdout.at_eof():
-            break
     return response
-
-
-async def archive(request):
-    raise NotImplementedError
 
 
 async def handle_index_page(request):
@@ -52,6 +51,11 @@ async def handle_index_page(request):
 
 
 if __name__ == '__main__':
+    logging.basicConfig(
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        level=logging.INFO
+    )
+
     app = web.Application()
     app.add_routes([
         web.get('/', handle_index_page),

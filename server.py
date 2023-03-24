@@ -1,3 +1,4 @@
+import argparse
 import os
 import logging
 import aiofiles
@@ -8,7 +9,6 @@ from asyncio import subprocess
 logger = logging.getLogger(__name__)
 
 CHUNK_SIZE = 100*1024
-PHOTOS_DIR = 'test_photos'
 
 
 async def create_archive(dir_path):
@@ -22,7 +22,7 @@ async def create_archive(dir_path):
 
 async def archive_handler(request):
     dir_name = request.match_info.get('archive_hash')
-    dir_path = os.path.join('test_photos', dir_name)
+    dir_path = os.path.join(app['working_dir'], dir_name)
     if not os.path.exists(dir_path):
         logger.warning(f'Cannot access {dir_path}: No such directory')
         raise web.HTTPNotFound(text='Архив удален или перемещен')
@@ -41,7 +41,7 @@ async def archive_handler(request):
             archive_chunk = await process.stdout.read(CHUNK_SIZE)
             logger.info(f'Sending archive chunk {len(archive_chunk)} bytes to length')
             await response.write(archive_chunk)
-            await asyncio.sleep(0.2)
+            await asyncio.sleep(app['latency'])
     except asyncio.CancelledError:
         logger.info('Download was interrupted')
     except SystemExit:
@@ -69,12 +69,30 @@ async def handle_index_page(request):
 
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser(
+        prog='ProgramName',
+        description='What the program does',
+        epilog='Text at the bottom of help',
+    )
+    parser.add_argument(
+        '-l', '--log',
+        dest='logLevel',
+        choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'],
+        help='Set the logging level',
+        default='INFO',
+    )
+    parser.add_argument('-d', '--directory', type=str, default='test_photos', help='photos directory')
+    parser.add_argument('-lat', '--latency', type=float, default=0.2, help='stream response delay')
+    args = parser.parse_args()
+
     logging.basicConfig(
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-        level=logging.DEBUG
+        level=getattr(logging, args.logLevel),
     )
 
     app = web.Application()
+    app['latency'] = args.latency
+    app['working_dir'] = args.directory
     app.add_routes([
         web.get('/', handle_index_page),
         web.get('/archive/{archive_hash}/', archive_handler),

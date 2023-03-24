@@ -36,12 +36,30 @@ async def archive_handler(request):
 
     await response.prepare(request)
 
-    while not process.stdout.at_eof():
-        archive_chunk = await process.stdout.read(CHUNK_SIZE)
-        logger.info(f'Sending archive chunk {len(archive_chunk)} bytes to length')
-        await response.write(archive_chunk)
-
-    return response
+    try:
+        while not process.stdout.at_eof():
+            archive_chunk = await process.stdout.read(CHUNK_SIZE)
+            logger.info(f'Sending archive chunk {len(archive_chunk)} bytes to length')
+            await response.write(archive_chunk)
+            await asyncio.sleep(0.2)
+    except ConnectionResetError:
+        logger.info('Download was interrupted')
+    except SystemExit:
+        logger.error('System Exit exception')
+    else:
+        if not process.returncode == 0:
+            logger.warning(f'Received eof, but zip process return code is {process.returncode}')
+            raise web.HTTPServerError()
+        logger.debug('Zip process exit status is OK')
+        await response.write_eof()
+        logger.info('Archive has been sent')
+        return response
+    finally:
+        if process.returncode is None:
+            logger.debug("Killing zip process")
+            process.kill()
+            await process.comunicate()
+            raise web.HTTPBadRequest(text='Abort connection')
 
 
 async def handle_index_page(request):

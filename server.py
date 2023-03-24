@@ -42,7 +42,7 @@ async def archive_handler(request):
             logger.info(f'Sending archive chunk {len(archive_chunk)} bytes to length')
             await response.write(archive_chunk)
             await asyncio.sleep(0.2)
-    except ConnectionResetError:
+    except asyncio.CancelledError:
         logger.info('Download was interrupted')
     except SystemExit:
         logger.error('System Exit exception')
@@ -71,7 +71,7 @@ async def handle_index_page(request):
 if __name__ == '__main__':
     logging.basicConfig(
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-        level=logging.INFO
+        level=logging.DEBUG
     )
 
     app = web.Application()

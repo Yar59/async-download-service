@@ -45,6 +45,7 @@ async def archive_handler(request):
             await asyncio.sleep(app['latency'])
     except asyncio.CancelledError:
         logger.info('Download was interrupted')
+        raise
     except SystemExit:
         logger.error('System Exit exception')
     else:

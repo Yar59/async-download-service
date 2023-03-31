@@ -13,7 +13,8 @@ CHUNK_SIZE = 100*1024
 
 async def create_archiving_process(dir_path):
     process = await subprocess.create_subprocess_exec(
-        'zip', '-j', '-r', '-', dir_path,
+        'zip', '-j', '-r', '-', '.',
+        cwd=dir_path,
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE
     )

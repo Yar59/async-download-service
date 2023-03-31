@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 CHUNK_SIZE = 100*1024
 
 
-async def create_archive(dir_path):
+async def create_archiving_process(dir_path):
     process = await subprocess.create_subprocess_exec(
         'zip', '-j', '-r', '-', dir_path,
         stdout=asyncio.subprocess.PIPE,
@@ -27,7 +27,7 @@ async def archive_handler(request):
         logger.warning(f'Cannot access {dir_path}: No such directory')
         raise web.HTTPNotFound(text='Архив удален или перемещен')
     logger.info(f'Started sending the archive {dir_name}.zip')
-    process = await create_archive(dir_path)
+    process = await create_archiving_process(dir_path)
 
     response = web.StreamResponse()
 

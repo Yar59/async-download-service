@@ -22,7 +22,7 @@ async def create_archiving_process(dir_path):
 
 
 async def archive_handler(request):
-    dir_name = request.match_info.get('archive_hash')
+    dir_name = request.match_info['archive_hash']
     dir_path = os.path.join(app['working_dir'], dir_name)
     if not os.path.exists(dir_path):
         logger.warning(f'Cannot access {dir_path}: No such directory')
